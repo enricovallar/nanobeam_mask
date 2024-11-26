@@ -14,6 +14,10 @@ themask = smlay.Mask("Adiabatic Vertical Taper Mask")
 import samplemaker.devices
 
 
+#_____________________________________________________________________________________________
+#
+#  Nanobeam
+#_____________________________________________________________________________________________
 
 class Nanobeam(Device):
 
@@ -23,7 +27,7 @@ class Nanobeam(Device):
 
     def initialize(self):
         self.set_name("NANOBEAM")
-        self.set_description("Adiabatic Vertical Coupler, InP coupon")
+        self.set_description("Nanobeam with theters")
     
     def write_notes(self): 
         p = self.get_params()
@@ -42,7 +46,7 @@ class Nanobeam(Device):
             
 
     
-
+    
     def parameters(self):
         self.addparameter("taper_length", 8, "Length of each taper")
         self.addparameter("top_length", 20, "Length of top waveguide")
@@ -224,7 +228,7 @@ class Nanobeam(Device):
         
         
         str = f"{p['group_id']}_{p['row_id']}_{p['col_id']}"
-        text = sm.make_text(0, 2*(p["theter_length"] + p["top_width"]), str, 2, 0.2, to_poly=True, numkey=2, layer=4)
+        text = sm.make_text(0, 4*(p["theter_length"] + p["top_width"]), str, 2, 0.2, to_poly=True, numkey=2, layer=4)
         
         
         length_total = no_exp_binding_box.bounding_box().width 
@@ -263,18 +267,33 @@ class Nanobeam(Device):
         return nanobeam
     
 
+
+
+
+
+
+
+
 coupon = Nanobeam.build()
 print(coupon.get_params())
 print(coupon.relevant_params)
 coupon.set_relevant_params(["taper_length", "top_length", "top_width", "top_tip_width"])
 print(coupon.relevant_params)
 
-DeviceInspect(coupon, fix_aspect_ratio=True)
+#DeviceInspect(coupon, fix_aspect_ratio=True)
 registerDevicesInModule(__name__)
 geom = coupon.geom()
 #GeomView(geom, fix_aspect_ratio=True, plot_height = 600)
 
 
+
+
+
+
+#_____________________________________________________________________________________________
+#
+#  Nanobeam with Pads
+#_____________________________________________________________________________________________
 class FullDevice(Nanobeam):
     def initialize(self):
         self.set_name("FULLDEVICE")
@@ -412,377 +431,7 @@ class FullDevice(Nanobeam):
         return FullDevice
 
 FullDevice.build()
-DeviceInspect(FullDevice, fix_aspect_ratio=True)
+#DeviceInspect(FullDevice, fix_aspect_ratio=True)
 registerDevicesInModule(__name__)
 geom = FullDevice.build().geom()
 #GeomView(geom, fix_aspect_ratio=True, plot_height = 600)   
-
-
-# Let's import basic stuff
-import samplemaker.layout as smlay # used for layout 
-import samplemaker.makers as sm # used for drawing
-import samplemaker.devices as smdev # used for device function
-# Let's use numpy arrays
-import numpy as np
-
-
-# Create a simple mask layout
-themask_only_nanobeams= smlay.Mask("Prototype Mask Only Nanobeams")
-themask = smlay.Mask("Prototype Mask")
-
-
-geom = sm.GeomGroup()
-nanobeam = smdev.Device.build_registered("NANOBEAM")
-nanobeam.set_relevant_params(["taper_length", 
-                              "top_length", 
-                              "top_width", 
-                              "top_tip_width", 
-                              "theter_length", 
-                              "theter_width", 
-                              "theters_distance",  
-                              "shrink_um"])
-
-
-nanobeam.set_param("theter_length", 1)
-nanobeam.set_param("top_length", 10)
-nanobeam.set_param("taper_length", 8)
-nanobeam.set_param("m", 0.85)
-nanobeam.set_param("offset_from_tip", 1)
-nanobeam.set_param("shrink_um", 0.015)
-nanobeam.set_param("N_atoms_left", 0)
-nanobeam.set_param("N_atoms_right", 0)
-
-
-from itertools import product
-group_index = 0
-element_row_index = 0
-def generate_param_dict(**kwargs):
-    # Initialize the dictionary that will store lists for each parameter
-    param_dict = {key: [] for key in kwargs}
-    
-    # Get the cartesian product of all parameter values
-    param_combinations = product(*kwargs.values())
-    
-    # Populate the param_dict with the combinations
-    for combination in param_combinations:
-        for i, key in enumerate(kwargs):
-            param_dict[key].append(combination[i])
-    
-    return param_dict, len(param_dict[key])
-
-
-
-# Example usage:
-theter_width = np.arange(0.150, 0.35, 0.05).tolist() 
-theters_distance = [4, 5, 8, 10]
-one_side_theters = [0, 0, 1, 1]
-
-
-# Generate param dictionary with arbitrary parameters
-param_cols, N_cols= generate_param_dict(
-    theters_distance = theters_distance,
-    one_side_theters = one_side_theters,
-)
-
-param_rows, N_rows = generate_param_dict(
-    theter_width = theter_width,
-
-)
-
-row_id = [i for i in range(N_rows)]
-column_id = [i for i in range(N_cols)]
-
-param_rows["row_id"] = row_id
-param_cols["col_id"] = column_id
-
-
-
-tab10um = smlay.DeviceTable(nanobeam,
-                        N_rows, N_cols,
-                        param_rows,
-                        param_cols
-                        )
-
-# Example usage:
-theter_width = np.arange(0.150, 0.35, 0.05).tolist() 
-theters_distance = [4, 5, 8, 10, 20]
-one_side_theters = [0, 0, 1, 1]
-
-
-# Generate param dictionary with arbitrary parameters
-param_cols, N_cols= generate_param_dict(
-    theters_distance=theters_distance,
-    one_side_theters = one_side_theters,
-)
-
-param_rows, N_rows = generate_param_dict(
-    theter_width = theter_width,
-
-)
-
-row_id = [i for i in range(N_rows)]
-column_id = [i for i in range(N_cols)]
-
-param_rows["row_id"] = row_id
-param_cols["col_id"] = column_id
-
-nanobeam.set_param("top_length", 20)
-nanobeam.set_param("group_id", 1)   
-tab20um = smlay.DeviceTable(nanobeam,
-                        N_rows, N_cols,
-                        param_rows,
-                        param_cols
-                        )
-
-
-tab10um.auto_align(20, 20, numkey=5)
-tab20um.auto_align(20, 20, numkey=5)
-
-#GeomView(tab.get_geometries().flatten(), fix_aspect_ratio=False)
-
-
-
-
-
-
-themask_only_nanobeams.addDeviceTable(tab10um, 0, 0)
-themask_only_nanobeams.addDeviceTable(tab20um, 0, 400)
-
-
-
-themask_only_nanobeams.exportGDS()
-
-
-themask_nanobeams_with_cavity = smlay.Mask("Prototype Mask with Nanobeams and Cavity")
-geom = sm.GeomGroup()
-nanobeam = smdev.Device.build_registered("NANOBEAM")
-nanobeam.set_relevant_params(["taper_length", 
-                              "top_length", 
-                              "top_width", 
-                              "top_tip_width", 
-                              "theter_length", 
-                              "theter_width", 
-                              "theters_distance",  
-                              "shrink_um", 
-                              "N_atoms_left",
-                              "N_atoms_right",
-                              "atom_radius",
-                              "gap",
-                              "latice_constant",])
-
-
-nanobeam.set_param("theter_length", 1)
-nanobeam.set_param("top_length", 10)
-nanobeam.set_param("taper_length", 8)
-nanobeam.set_param("m", 0.85)
-nanobeam.set_param("offset_from_tip", 1)
-nanobeam.set_param("shrink_um", 0.015)
-nanobeam.set_param("N_atoms_left", 10)
-nanobeam.set_param("N_atoms_right", 10)
-nanobeam.set_param("atom_radius", 0.080)
-nanobeam.set_param("one_side_theters", 1)
-
-
-
-
-from itertools import product
-group_index = 0
-element_row_index = 0
-def generate_param_dict(**kwargs):
-    # Initialize the dictionary that will store lists for each parameter
-    param_dict = {key: [] for key in kwargs}
-    
-    # Get the cartesian product of all parameter values
-    param_combinations = product(*kwargs.values())
-    
-    # Populate the param_dict with the combinations
-    for combination in param_combinations:
-        for i, key in enumerate(kwargs):
-            param_dict[key].append(combination[i])
-    
-    return param_dict, len(param_dict[key])
-
-
-
-# Example usage:
-theter_width = np.arange(0.150, 0.35, 0.05).tolist() 
-theters_distance = [4, 5, 8, 10]
-lattice_constant = [-0.040, -0.020, 0, 0.020, 0.040]
-lattice_constant = [0.350 + x for x in lattice_constant]
-print(lattice_constant)
-gap = [-0.040, -0.020, 0, 0.020, 0.040]
-gap = [0.880 + x for x in gap]
-print(gap)
-
-
-# Generate param dictionary with arbitrary parameters
-param_cols, N_cols= generate_param_dict(
-    theters_distance = theters_distance,
-    lattice_constant = lattice_constant,
-)
-
-param_rows, N_rows = generate_param_dict(
-    theter_width = theter_width,
-    gap = gap
-)
-
-row_id = [i for i in range(N_rows)]
-column_id = [i for i in range(N_cols)]
-
-param_rows["row_id"] = row_id
-param_cols["col_id"] = column_id
-
-
-
-tab10um = smlay.DeviceTable(nanobeam,
-                        N_rows, N_cols,
-                        param_rows,
-                        param_cols
-                        )
-
-# Example usage:
-theter_width = np.arange(0.150, 0.35, 0.05).tolist() 
-theters_distance = [4, 5, 8, 10]
-lattice_constant = [-0.040, -0.020, 0, 0.020, 0.040]
-lattice_constant = [0.350 + x for x in lattice_constant]
-print(lattice_constant)
-gap = [-0.040, -0.020, 0, 0.020, 0.040]
-gap = [0.880 + x for x in gap]
-print(gap)
-
-
-# Generate param dictionary with arbitrary parameters
-param_cols, N_cols= generate_param_dict(
-    theters_distance=theters_distance,
-    lattice_constant = lattice_constant,
-)
-
-param_rows, N_rows = generate_param_dict(
-    theter_width = theter_width,
-    gap = gap
-
-)
-
-row_id = [i for i in range(N_rows)]
-column_id = [i for i in range(N_cols)]
-
-param_rows["row_id"] = row_id
-param_cols["col_id"] = column_id
-
-nanobeam.set_param("top_length", 20)
-nanobeam.set_param("group_id", 1)   
-tab20um = smlay.DeviceTable(nanobeam,
-                        N_rows, N_cols,
-                        param_rows,
-                        param_cols
-                        )
-
-
-tab10um.auto_align(20, 20, numkey=5)
-tab20um.auto_align(20, 20, numkey=5)
-
-#GeomView(tab.get_geometries().flatten(), fix_aspect_ratio=False)
-
-
-
-
-
-
-themask_nanobeams_with_cavity.addDeviceTable(tab10um, 0, 0)
-themask_nanobeams_with_cavity.addDeviceTable(tab20um, 0, 600)
-themask_nanobeams_with_cavity.exportGDS()
-
-
-StabilizedNanobeam = smdev.Device.build_registered("FULLDEVICE")
-StabilizedNanobeam.get_params()
-
-
-from itertools import product
-geom = sm.GeomGroup()
-group_index = 0
-element_row_index = 0
-def generate_param_dict(**kwargs):
-    # Initialize the dictionary that will store lists for each parameter
-    param_dict = {key: [] for key in kwargs}
-    
-    # Get the cartesian product of all parameter values
-    param_combinations = product(*kwargs.values())
-    
-    # Populate the param_dict with the combinations
-    for combination in param_combinations:
-        for i, key in enumerate(kwargs):
-            param_dict[key].append(combination[i])
-    
-    return param_dict, len(param_dict[key])
-
-# Example usage:
-theter_width_pad = np.arange(0.150, 0.35, 0.05).tolist()
-theters_distance_pad = [4, 5, 8, 10, 20]
-top_length = [10, 10, 20, 20]
-
-StabilizedNanobeam.set_relevant_params(["taper_length", 
-                              "top_length", 
-                              "top_width", 
-                              "top_tip_width", 
-                              "theter_length", 
-                              "theter_width", 
-                              "theters_distance", 
-                              "theter_width_pad",
-                              "theter_length_pad",
-                              "theters_distance_pad",
-                              "aperture_size",
-                              "holes_distance",
-                              "pad_edge",
-                              "shrink_um"])
-
-
-StabilizedNanobeam.set_param("theter_width", 0.3)
-StabilizedNanobeam.set_param("theter_length", 0.5)
-StabilizedNanobeam.set_param("theter_length_pad", 1)
-StabilizedNanobeam.set_param("theter_width_pad", 0.2)
-StabilizedNanobeam.set_param("aperture_size", 0.5)
-StabilizedNanobeam.set_param("taper_length", 8)
-StabilizedNanobeam.set_param("m", 0.85)
-StabilizedNanobeam.set_param("offset_from_tip", 1)
-StabilizedNanobeam.set_param("shrink_um", 0.015)
-
-
-
-
-
-# Generate param dictionary with arbitrary parameters
-param_cols, N_cols= generate_param_dict(
-    theter_width_pad = theter_width_pad,
-    top_length = top_length
-)
-
-param_rows, N_rows = generate_param_dict(
-    theters_distance_pad = theters_distance_pad
-)
-
-row_id = [i for i in range(N_rows)]
-column_id = [i for i in range(N_cols)]
-
-
-param_rows["row_id"] = row_id
-param_cols["col_id"] = column_id
-
-
-StabilizedNanobeam.set_param("group_id", 2)
-tabPad = smlay.DeviceTable(StabilizedNanobeam,
-                        N_rows, N_cols,
-                        param_rows,
-                        param_cols
-                        )
-
-
-tabPad.auto_align(50, 50,  numkey=5)
-
-
-#GeomView(tab.get_geometries().flatten(), fix_aspect_ratio=False)
-
-
-
-
-themask.addDeviceTable(tabPad, 3000, 0)
-themask.exportGDS()
