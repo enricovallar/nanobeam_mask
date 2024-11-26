@@ -10,7 +10,7 @@ import numpy as np
 import mydevices
 from mydevices import *
 
-themask_stabilized_nanobeams= smlay.Mask("Nanobeams_stabilized_no_cavity")
+themask_stabilized_nanobeams= smlay.Mask("Nanobeams stabilized no cavity")
 StabilizedNanobeam = smdev.Device.build_registered("FULLDEVICE")
 StabilizedNanobeam.get_params()
 
@@ -100,8 +100,6 @@ tabPad.auto_align(50, 50,  numkey=5)
 
 
 #GeomView(tab.get_geometries().flatten(), fix_aspect_ratio=False)
-
-
 
 
 themask_stabilized_nanobeams.addDeviceTable(tabPad, 3000, 0)
