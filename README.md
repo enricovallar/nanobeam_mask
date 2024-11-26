@@ -1,5 +1,7 @@
 # nanobeam_mask
 Mask for InP nanobeam
+Download all the files in the same folder
+Remember to use the correct conda envirenment every time. 
 
 
 - use miniconda/anaconda
