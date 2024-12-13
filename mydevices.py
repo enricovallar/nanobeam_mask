@@ -435,3 +435,217 @@ FullDevice.build()
 registerDevicesInModule(__name__)
 geom = FullDevice.build().geom()
 #GeomView(geom, fix_aspect_ratio=True, plot_height = 600)   
+
+# Basic classes
+
+import samplemaker.layout as smlay
+import samplemaker.makers as sm
+from samplemaker.devices import Device, registerDevicesInModule
+from samplemaker.plotly_viewers import DeviceInspect, GeomView
+from samplemaker.baselib.waveguides import BaseWaveguideSequencer, BaseWaveguidePort
+from samplemaker.routers import WaveguideConnect
+from samplemaker.shapes import GeomGroup
+# Create a simple mask layout
+import numpy as np
+import math
+themask = smlay.Mask("Adiabatic Vertical Taper Mask")
+import samplemaker.devices
+
+from mydevices import *
+
+#__________________________________________________
+#  PHOTONIC CRYSTAL
+#__________________________________________________
+import samplemaker.phc as sphc
+
+class PhCNanobeam(Nanobeam):
+    def initialize(self):
+        self.set_name("PHC_NANOBEAM")
+        self.set_description("full device")
+        
+    def parameters(self):
+        super().parameters()
+        self.addparameter("pad_edge", 100, "Edge of the pad")
+        self.addparameter("offset_from_corner_um", 5, "Offset from the corner of the pad")
+        self.addparameter("theters_distance_pad", 5, "Distance between theters in the pad")
+        self.addparameter("theter_length_pad", 1, "Length of theters in the pad")
+        self.addparameter("theter_width_pad", 1, "Width of theters in the pad")
+        self.addparameter("aperture_size", 2, "Size of the aperture")
+        self.addparameter("holes_distance_from_edge", 5, "Distance of the holes from the edge of the pad")
+        self.addparameter("holes_distance", 5, "Distance between holes") 
+        self.addparameter("lattice_mirror", 0.45, "Lattice constant of the mirror")
+        self.addparameter("radius_mirror", 0.1,  "Mirror radius")
+
+
+        
+
+    def geom(self):
+        p = self.get_params()
+        
+        
+        
+        nanobeam_dev = Nanobeam.build()
+        p2 = nanobeam_dev.get_params()
+        for key in p2.keys():
+            nanobeam_dev.set_param(key, p[key])
+
+        
+        nanobeam_dev.set_param("theter_length", 0)
+        p["theter_length"] = 0
+        
+        nanobeam = nanobeam_dev.geom()
+
+
+
+        
+        nanobeam_width_original = 2*p["theter_length"]+p["top_width"]
+        pads = sm.make_rect(0, 0, p["pad_edge"], 2*p["pad_edge"]+ nanobeam_width_original , layer = 3, numkey=5)
+        theters = GeomGroup()
+
+        
+        theter = sm.make_rect(0, p["pad_edge"]+nanobeam_width_original/2, p["theter_width_pad"], p["theter_length_pad"]  , layer=3, numkey=2)
+        theters_x = GeomGroup()
+        
+        x_valid_max = p["pad_edge"]/2  - p["offset_from_corner_um"]
+        x = -x_valid_max 
+        while x <= x_valid_max:
+            theters_x += theter.copy().translate(x, 0)
+            x_last = x
+            x += p["theters_distance"]
+        x_rest =  x_valid_max - x_last
+        if x_rest > 0:
+            theters_x.translate(x_rest/2, 0)
+        theters_x += theters_x.copy().rotate(0, 0, 180)
+
+    
+
+        theter = sm.make_rect(-p["pad_edge"]/2, 0, p["theter_length_pad"], p["theter_width_pad"], layer=3, numkey=6)
+        y_valid_max = p["pad_edge"]+ nanobeam_width_original/2 - p["offset_from_corner_um"]
+        y = -y_valid_max
+        theters_y = GeomGroup()
+        while y <= y_valid_max:
+            theters_y += theter.copy().translate(0, y)
+            y_last = y
+            y += p["theters_distance"]
+        y_rest =  y_valid_max - y_last
+        if y_rest > 0:
+            theters_y.translate(0, y_rest/2)
+        theters_to_remove =theter.copy()
+        theters_y = theters_y.boolean_difference(theters_to_remove, 3, 3)
+        theters_y += theters_y.copy().rotate(0, 0, 180)
+
+        pads+= theters_x + theters_y
+        pads.boolean_union(3)
+        
+        def circular_atom_cell(x,y,params):
+            return sm.make_circle(x,y, params[0], to_poly=True, vertices=16).set_layer(1)
+        
+        crystal = sphc.Crystal()
+        Nx = int(p["pad_edge"]//p["lattice_mirror"])
+        Ny = 9
+        r = p["radius_mirror"]
+
+        crystal =  crystal.triangular_box(Nx=int((Nx-1)//2), Ny=int((Ny-1)//2), Nparams=1)
+        print(crystal.xpts)
+        print(crystal.ypts)
+    
+
+        
+        phc = sphc.make_phc(crystal=crystal, scaling = p["lattice_mirror"],  cellparams = [r], x0=0, y0=0)
+        phc_bb = phc.bounding_box()
+        phc = phc.copy().translate(0, phc_bb.height/2 + p["top_width"]/2 + p["radius_mirror"]) + phc.copy().translate(0, - phc_bb.height/2 - p["top_width"]/2 - p["radius_mirror"])
+        phc.set_layer(1)
+        phc.all_to_poly(32)
+        phc_bb2 = phc.bounding_box()
+        pads = pads.boolean_difference(phc, 3, 1)
+        
+
+
+         
+
+
+
+        hole = sm.make_rect(0, 0, p["aperture_size"], p["aperture_size"], layer=2, numkey=5)
+        global themask
+        themask.addCell("HOLE", hole)
+        holes = GeomGroup()
+
+        distance = p["holes_distance"]+p["aperture_size"]
+        x_valid_max = p["pad_edge"] / 2 - p["holes_distance_from_edge"] 
+        y_valid_max = p["pad_edge"] + nanobeam_width_original/2 - p["holes_distance_from_edge"] 
+        x = -x_valid_max
+        x_centers = []
+        while x <= x_valid_max:
+            x_centers.append(x)
+            x_last = x
+            x += distance
+        x_rest = x_valid_max - x_last
+        x_centers = [xc + x_rest/2 for xc in x_centers]
+
+        y = - y_valid_max
+        y_centers = []
+        while y <= y_valid_max:
+            y_centers.append(y)
+            y_last = y
+            y += distance
+        y_rest = y_valid_max-y_last
+        y_centers = [yc + y_rest/2 for yc in y_centers]
+       
+
+
+        
+        # Exclude points from the centers grid
+        nanobeam_length_no_shrink = nanobeam.select_layers([1,2]).bounding_box().width
+        nanobeam_width_no_shrink = nanobeam.select_layers([1,2]).bounding_box().height
+        holes = GeomGroup()
+        for xc in x_centers:
+            for yc in y_centers:
+                if abs(xc) <= phc_bb2.width / 2 and abs(yc) <= phc_bb2.height/2:
+                    pass
+                else:
+                    holes+=hole.copy().translate(xc, yc)
+        pads = pads.boolean_difference(holes, 3, 2)
+        pads.boolean_union(3)
+
+
+        bb = pads.bounding_box()
+        rbox = bb.toRect()
+        rbox.set_layer(4)
+        pads = rbox.boolean_difference(pads, 4, 3)
+        pads.boolean_union(4)
+        pads.poly_resize(-p["shrink_um"], layer=4)
+        
+        nanobeam_bb = nanobeam.select_layers([1,2]).bounding_box()
+        rbox2 = nanobeam_bb.toRect()
+        rbox2.set_layer(5)
+        pads = pads.boolean_difference(rbox2, 4, 5)
+        pads = pads.set_layer(3)
+
+        separator = sm.make_rect(0, 0, p["pad_edge"], p["top_width"], layer=4, numkey=5)
+        separator.poly_resize(-p["shrink_um"], layer=4) 
+        separator = separator.boolean_difference(rbox2, 4, 5)
+        pads+=separator.set_layer(3)
+
+        
+        nanobeam = nanobeam.select_layers([1,2,4])
+        FullDevice =  nanobeam + pads 
+        text = FullDevice.select_layer(4)
+
+        text.translate(0, p["pad_edge"]*1.1)
+        FullDevice+= self.write_notes()
+        
+        
+        return FullDevice
+
+PhCNanobeam.build()
+#DeviceInspect(PhCNanobeam, fix_aspect_ratio=True)
+
+registerDevicesInModule(__name__)
+geom = PhCNanobeam.build().geom()
+#GeomView(geom, fix_aspect_ratio=True, plot_height = 600)   
+
+
+
+
+
+
